@@ -61,26 +61,47 @@ ALL_MODEL_FEATURES = PRICE_FEATURES + WEATHER_FEATURES + APY_FEATURES + SEASONAL
 
 
 def find_dataset_file(custom_path: str | Path | None = None) -> Path:
-    """Locate the dataset file supporting both 2Sugar_* and Sugar_* naming and XLSX/CSV formats."""
+    """Locate the dataset file supporting 2Sugar_* and Sugar_* naming, XLSX/CSV formats, and root/subfolder locations."""
     if custom_path:
         p = Path(custom_path)
         if p.exists():
             return p
 
-    data_dir = HERE / "data"
-    candidates = [
-        data_dir / "2Sugar_Top5_States_Clean_Input_Dataset.xlsx",
-        data_dir / "2Sugar_Top5_States_Clean_Input_Dataset.csv",
-        data_dir / "Sugar_Top5_States_Clean_Input_Dataset.xlsx",
-        data_dir / "Sugar_Top5_States_Clean_Input_Dataset.csv",
-        Path(r"C:\Users\shash\Downloads\2Sugar_Top5_States_Clean_Input_Dataset.xlsx"),
-        Path(r"C:\Users\shash\Downloads\Sugar_Top5_States_Clean_Input_Dataset.csv"),
+    search_dirs = [HERE / "data", HERE, HERE / "Data"]
+    fnames = [
+        "2Sugar_Top5_States_Clean_Input_Dataset.xlsx",
+        "2Sugar_Top5_States_Clean_Input_Dataset.csv",
+        "Sugar_Top5_States_Clean_Input_Dataset.xlsx",
+        "Sugar_Top5_States_Clean_Input_Dataset.csv",
     ]
-    for c in candidates:
-        if c.exists():
-            return c
 
-    raise FileNotFoundError(f"Clean input dataset not found in {data_dir}. Expected 2Sugar_Top5_States_Clean_Input_Dataset.xlsx or .csv.")
+    # 1. Exact priority match in data/ or root
+    for d in search_dirs:
+        if d.exists() and d.is_dir():
+            for fname in fnames:
+                cand = d / fname
+                if cand.exists():
+                    return cand
+
+    # 2. Case-insensitive search for sugar datasets
+    for d in search_dirs:
+        if d.exists() and d.is_dir():
+            for f in d.iterdir():
+                if f.is_file() and f.suffix.lower() in [".xlsx", ".xls", ".csv"]:
+                    if "sugar" in f.name.lower():
+                        return f
+
+    # 3. Any tabular file in data/
+    data_dir = HERE / "data"
+    if data_dir.exists() and data_dir.is_dir():
+        for f in data_dir.iterdir():
+            if f.is_file() and f.suffix.lower() in [".xlsx", ".xls", ".csv"]:
+                return f
+
+    raise FileNotFoundError(
+        f"Clean input dataset not found in {data_dir} or {HERE}. "
+        "Please ensure 'data/2Sugar_Top5_States_Clean_Input_Dataset.xlsx' is pushed to your GitHub repository."
+    )
 
 
 def load_clean_data(csv_path: str | Path | None = None) -> pd.DataFrame:
